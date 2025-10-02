@@ -125,7 +125,6 @@ export default function LandingPage() {
             <div className="relative mx-auto max-w-5xl rounded-2xl glass p-1 glow-border animate-float">
               <div className="rounded-xl bg-dark-50 p-4">
                 <div className="aspect-video bg-gradient-to-br from-primary-950 to-dark-100 rounded-lg flex items-center justify-center text-gray-500 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
                   <div className="relative z-10 text-center">
                     <Activity className="h-16 w-16 mx-auto mb-4 text-petroleum-500 animate-pulse" />
                     <p className="text-xl font-semibold">Live Dashboard Preview</p>
