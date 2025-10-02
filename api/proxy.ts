@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getAccessToken } from './auth'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -8,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   )
 
   if (req.method === 'OPTIONS') {
@@ -20,28 +19,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get the path from query parameter
     const path = req.query.path as string || ''
 
-    // Construct the target URL - preserve query parameters
-    const targetUrl = path.includes('?')
-      ? `https://app.shearstreaming.com/api/v1/${path}`
-      : `https://app.shearstreaming.com/api/v1/${path}`
+    // Construct the target URL
+    const targetUrl = `https://production.api.shearstreaming.com/api/v1/${path}`
 
-    // Get a fresh OAuth access token (automatically refreshes if expired)
-    let accessToken: string
-    try {
-      accessToken = await getAccessToken()
-    } catch (error) {
-      console.error('Failed to get access token:', error)
-      return res.status(500).json({
-        error: 'Authentication failed',
-        message: error instanceof Error ? error.message : 'Could not obtain access token'
+    // Get Authorization header from client request
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'No Authorization header provided'
       })
     }
 
-    // Forward the request to the ShearStream API
+    // Forward the request to the ShearStream API with client's auth token
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
+      'Authorization': authHeader,
     }
 
     console.log('Proxy request:', { method: req.method, url: targetUrl, hasAuth: !!headers['Authorization'] })

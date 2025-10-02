@@ -105,6 +105,11 @@ class ShearStreamAPI {
       ...(options?.headers as Record<string, string>),
     }
 
+    // Add Authorization header if token is available
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`
+    }
+
     // Determine URL based on proxy configuration
     let url: string
     if (USE_PROXY) {
@@ -112,17 +117,14 @@ class ShearStreamAPI {
       const path = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint
       url = `${PROXY_BASE_URL}?path=${encodeURIComponent(path)}`
     } else {
-      // Direct API call with auth token
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`
-      }
+      // Direct API call
       url = `${API_BASE_URL}${endpoint}`
     }
 
     const response = await fetch(url, {
       ...options,
       headers,
-      credentials: USE_PROXY ? 'omit' : 'include', // Proxy handles auth, no need for cookies
+      credentials: 'omit', // No cookies, using Bearer token
     })
 
     if (!response.ok) {
