@@ -26,7 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     keycloak
       .init({
         onLoad: 'login-required',
-        checkLoginIframe: false,
+        checkLoginIframe: true,
+        silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
         pkceMethod: 'S256',
       })
       .then((authenticated) => {
