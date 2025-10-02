@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { getAccessToken } from './auth'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -24,26 +25,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? `https://app.shearstreaming.com/api/v1/${path}`
       : `https://app.shearstreaming.com/api/v1/${path}`
 
-    // Get environment variables for authentication
-    const username = process.env.SHEARSTREAM_USERNAME || ''
-    const password = process.env.SHEARSTREAM_PASSWORD || ''
-    const token = process.env.SHEARSTREAM_TOKEN || ''
+    // Get a fresh OAuth access token (automatically refreshes if expired)
+    let accessToken: string
+    try {
+      accessToken = await getAccessToken()
+    } catch (error) {
+      console.error('Failed to get access token:', error)
+      return res.status(500).json({
+        error: 'Authentication failed',
+        message: error instanceof Error ? error.message : 'Could not obtain access token'
+      })
+    }
 
     // Forward the request to the ShearStream API
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-    }
-
-    // Prefer OAuth Bearer token if available, fallback to Basic Auth
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    } else if (username && password) {
-      const authString = Buffer.from(`${username}:${password}`).toString('base64')
-      headers['Authorization'] = `Basic ${authString}`
-    } else {
-      console.error('No credentials configured')
-      return res.status(500).json({ error: 'No credentials configured' })
+      'Authorization': `Bearer ${accessToken}`,
     }
 
     console.log('Proxy request:', { method: req.method, url: targetUrl, hasAuth: !!headers['Authorization'] })
