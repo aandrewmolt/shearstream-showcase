@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     keycloak
       .init({
-        onLoad: 'login-required',
+        onLoad: 'check-sso',
         checkLoginIframe: true,
         silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
         pkceMethod: 'S256',
@@ -34,6 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(authenticated)
         setToken(keycloak.token || null)
         setIsLoading(false)
+
+        // If not authenticated, redirect to login
+        if (!authenticated) {
+          keycloak.login()
+        }
 
         // Refresh token every 30 seconds
         setInterval(() => {
