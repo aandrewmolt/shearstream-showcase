@@ -19,23 +19,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get the path from query parameter
     const path = req.query.path as string || ''
 
-    // Construct the target URL
-    const targetUrl = `https://app.shearstreaming.com/api/v1/${path}`
+    // Construct the target URL - preserve query parameters
+    const targetUrl = path.includes('?')
+      ? `https://app.shearstreaming.com/api/v1/${path}`
+      : `https://app.shearstreaming.com/api/v1/${path}`
 
     // Get environment variables for authentication
     const username = process.env.SHEARSTREAM_USERNAME || ''
     const password = process.env.SHEARSTREAM_PASSWORD || ''
+    const token = process.env.SHEARSTREAM_TOKEN || ''
 
     // Forward the request to the ShearStream API
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     }
 
-    // Add basic auth if credentials are available
-    if (username && password) {
+    // Prefer OAuth Bearer token if available, fallback to Basic Auth
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    } else if (username && password) {
       const authString = Buffer.from(`${username}:${password}`).toString('base64')
       headers['Authorization'] = `Basic ${authString}`
+    } else {
+      console.error('No credentials configured')
+      return res.status(500).json({ error: 'No credentials configured' })
     }
+
+    console.log('Proxy request:', { method: req.method, url: targetUrl, hasAuth: !!headers['Authorization'] })
 
     const response = await fetch(targetUrl, {
       method: req.method,
@@ -43,11 +54,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: req.method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined,
     })
 
-    const data = await response.json()
+    console.log('Proxy response:', { status: response.status, statusText: response.statusText })
 
-    res.status(response.status).json(data)
+    // Handle non-JSON responses
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json()
+      res.status(response.status).json(data)
+    } else {
+      const text = await response.text()
+      console.error('Non-JSON response:', text.substring(0, 200))
+      res.status(response.status).send(text)
+    }
   } catch (error) {
     console.error('Proxy error:', error)
-    res.status(500).json({ error: 'Proxy request failed', message: error instanceof Error ? error.message : 'Unknown error' })
+    res.status(500).json({
+      error: 'Proxy request failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
   }
 }
